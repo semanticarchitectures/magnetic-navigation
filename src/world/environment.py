@@ -55,27 +55,38 @@ class World:
 
     def get_magnetic_field(self, x: float, y: float, z: float) -> float:
         """
-        Returns the scalar magnetic intensity at the given position.
-        
-        Args:
-            x: Easting (meters)
-            y: Northing (meters)
-            z: Altitude (meters) - Currently ignored for 2D map, but interface ready.
-            
-        Returns:
-            Magnetic intensity in nT.
+        Returns the magnetic intensity at (x, y, z).
+        Simulates Upward Continuation by caching maps smoothed for specific altitudes.
         """
-        # Simple nearest neighbor or bilinear interpolation could be used here.
-        # For now, let's just map to grid indices.
+        # Quantize altitude to cache key (e.g., nearest 10m) to avoid thrashing
+        z_key = round(max(0.0, z) / 10.0) * 10.0
+        
+        if not hasattr(self, '_altitude_cache'):
+            self._altitude_cache = {}
+            
+        if z_key not in self._altitude_cache:
+            from scipy.ndimage import gaussian_filter
+            # Approx: Upward continuation behaves like a low-pass filter.
+            # We use a Gaussian blur where sigma scales with altitude.
+            # Heuristic: sigma (pixels) ~ altitude (meters) / resolution (meters/pixel)
+            # This is not exact potential field theory but gives correct qualitative behavior.
+            sigma = z_key / self.config.resolution
+            
+            if sigma < 0.5:
+                self._altitude_cache[z_key] = self.magnetic_map # No significant blur
+            else:
+                self._altitude_cache[z_key] = gaussian_filter(self.magnetic_map, sigma=sigma)
+        
+        map_at_z = self._altitude_cache[z_key]
         
         idx_x = int(x / self.config.resolution)
         idx_y = int(y / self.config.resolution)
         
         # Boundary checks
-        if 0 <= idx_x < self.magnetic_map.shape[1] and 0 <= idx_y < self.magnetic_map.shape[0]:
-            return self.magnetic_map[idx_y, idx_x]
+        if 0 <= idx_x < map_at_z.shape[1] and 0 <= idx_y < map_at_z.shape[0]:
+            return map_at_z[idx_y, idx_x]
         else:
-            return self.background_field # Return background if out of bounds
+            return self.background_field
 
     def get_map_bounds(self) -> Tuple[float, float, float, float]:
         """Returns (min_x, max_x, min_y, max_y)"""
