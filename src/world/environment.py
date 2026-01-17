@@ -20,24 +20,38 @@ class World:
 
     def _generate_magnetic_map(self):
         """
-        Generates a synthetic magnetic map.
-        Currently uses a simple combination of sine waves to simulate anomalies.
+        Generates a synthetic magnetic map using multi-scale filtered noise
+        to mimic geological features (less periodic, more random/fractal).
         Values are in nanoTesla (nT).
         """
-        x = np.linspace(0, self.config.width, int(self.config.width / self.config.resolution))
-        y = np.linspace(0, self.config.height, int(self.config.height / self.config.resolution))
-        self.xx, self.yy = np.meshgrid(x, y)
+        from scipy.ndimage import gaussian_filter
+        
+        width_px = int(self.config.width / self.config.resolution)
+        height_px = int(self.config.height / self.config.resolution)
         
         # Base field (Earth's background field, e.g., ~50,000 nT)
         self.background_field = 50000.0
+        self.magnetic_map = np.full((height_px, width_px), self.background_field)
         
-        # Synthetic anomalies
-        # Multiple frequencies to mimic geological features
-        f1 = np.sin(2 * np.pi * self.xx / 2000) * np.cos(2 * np.pi * self.yy / 2000) * 500
-        f2 = np.sin(2 * np.pi * self.xx / 500) * np.sin(2 * np.pi * self.yy / 500) * 100
-        f3 = self.rng.normal(0, 5, self.xx.shape) # Sensor noise / small variations
+        # Multi-scale noise parameters (Scale in pixels, Amplitude in nT)
+        # Assuming 10m resolution, 5000m width -> 500px
+        scales = [
+            (100.0, 500.0), # Large geological structures (1km)
+            (25.0, 150.0),  # Mid-size features (250m)
+            (5.0, 40.0),    # Finer details (50m)
+            (1.0, 5.0)      # High freq noise
+        ]
         
-        self.magnetic_map = self.background_field + f1 + f2 + f3
+        for sigma, amplitude in scales:
+            # Generate random white noise
+            noise = self.rng.standard_normal((height_px, width_px))
+            # Smooth it
+            filtered = gaussian_filter(noise, sigma=sigma)
+            # Normalize and scale
+            if filtered.max() > filtered.min():
+                filtered = (filtered - filtered.mean()) / (filtered.std() + 1e-6)
+            
+            self.magnetic_map += filtered * amplitude
 
     def get_magnetic_field(self, x: float, y: float, z: float) -> float:
         """
