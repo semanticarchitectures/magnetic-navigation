@@ -23,7 +23,7 @@ def run_simulation():
         (4000.0, 100.0, 100.0),   # South
         (100.0, 100.0, 100.0)     # West (back to start)
     ]
-    navigator = WaypointNavigator(waypoints, speed=60.0, acceptance_radius=100.0)
+    navigator = WaypointNavigator(waypoints, speed=60.0, acceptance_radius=100.0, loop=True)
     
     # 4. Setup Sensor
     mag = Magnetometer(noise_std=2.0)
