@@ -55,7 +55,10 @@ src/
 ```
 
 ### Protocol
-Communication will initially be **Python Native** (method calls / events) to ensure speed, but designed with **Text Compatibility** in mind (agents exchange structured data classes that can be serialized to JSON prompts for LLMs later).
+**Aviation Voice Protocol**: Communication between agents will emulate standard human aviation voice traffic (e.g., BREVITY codes, standard phraseology).
+- format: `[Callsign] [Recipient], [Message]`.
+- example: `"Navigator, Commander. GPS Unreliable. Switch MagNav."`
+- This ensures seamless integration with human operators who might listen in or participate on the same channel.
 
 ## 5. Timeline & Milestones
 - **Week 1**: Architecture Refactoring (Bus & Base Classes).
